@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# YouTube MP3 Downloads folder
+~/Downloads/YouTube MP3s/

@@ -20,7 +20,8 @@ import yt_dlp
 DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
 
 # Audio quality settings
-AUDIO_BITRATE = "192"  # kbps
+AUDIO_BITRATE_DEFAULT = "320"  # kbps (highest MP3 quality)
+AUDIO_BITRATE_OPTIONS = ["128", "192", "256", "320"]  # Available quality options
 AUDIO_CODEC = "mp3"
 
 # YouTube domains to validate URLs
@@ -60,6 +61,7 @@ class YouTubeMP3Converter:
 
         self._setup_ui()
         self.is_downloading = False
+        self.selected_bitrate = AUDIO_BITRATE_DEFAULT  # Default to highest quality
 
     def _check_ffmpeg(self) -> bool:
         """Check if ffmpeg is installed"""
@@ -124,6 +126,32 @@ class YouTubeMP3Converter:
         # Allow pressing Enter to trigger download
         self.url_entry.bind("<Return>", lambda e: self._on_download_click())
 
+        # Audio quality selector
+        quality_frame = tk.Frame(content_frame)
+        quality_frame.pack(fill=tk.X, pady=(0, 15))
+
+        quality_label = tk.Label(quality_frame, text="Audio Quality:", font=("Helvetica", 10, "bold"))
+        quality_label.pack(side=tk.LEFT, padx=(0, 10))
+
+        self.quality_var = tk.StringVar(value=AUDIO_BITRATE_DEFAULT)
+        quality_dropdown = tk.OptionMenu(
+            quality_frame,
+            self.quality_var,
+            *AUDIO_BITRATE_OPTIONS,
+            command=self._on_quality_change
+        )
+        quality_dropdown.config(font=("Helvetica", 10), bg="white")
+        quality_dropdown.pack(side=tk.LEFT)
+
+        # Display file size estimate for selected quality
+        self.quality_info_label = tk.Label(
+            quality_frame,
+            text="(~8-10 MB/min)",
+            font=("Helvetica", 9),
+            fg=TEXT_COLOR_DARK
+        )
+        self.quality_info_label.pack(side=tk.LEFT, padx=(10, 0))
+
         # Download button
         button_frame = tk.Frame(content_frame)
         button_frame.pack(fill=tk.X, pady=(0, 15))
@@ -183,6 +211,20 @@ class YouTubeMP3Converter:
         self.status_text.delete(1.0, tk.END)
         self.status_text.config(state=tk.DISABLED)
 
+    def _on_quality_change(self, selected_quality: str):
+        """Update UI when user changes audio quality"""
+        self.selected_bitrate = selected_quality
+
+        # Update file size estimate based on bitrate
+        # MP3 file size ≈ bitrate × duration (rough estimate: ~1 MB per 10 seconds at 128kbps)
+        size_estimates = {
+            "128": "(~4-5 MB/min)",
+            "192": "(~6-7 MB/min)",
+            "256": "(~8-9 MB/min)",
+            "320": "(~10-12 MB/min)",
+        }
+        self.quality_info_label.config(text=size_estimates.get(selected_quality, ""))
+
     def _validate_url(self, url: str) -> bool:
         """Validate if URL is a YouTube URL"""
         if not url.strip():
@@ -225,11 +267,11 @@ class YouTubeMP3Converter:
             ydl_opts = {
                 # Download best available audio quality
                 "format": "bestaudio/best",
-                # Post-processor: extract audio and convert to MP3
+                # Post-processor: extract audio and convert to MP3 at selected quality
                 "postprocessors": [{
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": AUDIO_CODEC,
-                    "preferredquality": AUDIO_BITRATE,
+                    "preferredquality": self.selected_bitrate,
                 }],
                 # Output filename template (uses video title)
                 "outtmpl": os.path.join(self.download_folder, "%(title)s.%(ext)s"),

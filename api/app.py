@@ -12,7 +12,13 @@ from pathlib import Path
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:3000", "http://localhost:3001"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Configuration
 DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
@@ -50,10 +56,13 @@ def health_check():
 @app.route("/api/download", methods=["POST"])
 def download():
     """Download YouTube video and convert to MP3"""
+    print(f"📥 Download request received from {request.remote_addr}")
+    print(f"   Headers: {dict(request.headers)}")
     try:
         data = request.json
         url = data.get("url", "").strip()
         bitrate = data.get("bitrate", "320")
+        print(f"   URL: {url}, Bitrate: {bitrate}")
 
         # Validate input
         if not url:
@@ -117,8 +126,12 @@ def download():
             return jsonify({"error": error_msg}), 400
 
     except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Unexpected error: {error_msg}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({
-            "error": f"An error occurred: {str(e)}"
+            "error": f"An error occurred: {error_msg}"
         }), 500
 
 
@@ -154,7 +167,7 @@ if __name__ == "__main__":
         print("Install it with: brew install ffmpeg")
 
     print(f"✓ Download folder: {DOWNLOAD_FOLDER}")
-    print("✓ Starting Flask API server on http://localhost:5000")
+    print("✓ Starting Flask API server on http://localhost:8000")
     print("✓ Press Ctrl+C to stop")
 
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8000)

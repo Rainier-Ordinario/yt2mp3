@@ -1,144 +1,84 @@
 # YouTube to MP3 Converter
 
-A simple, lightweight desktop application to download YouTube videos and convert them to MP3 format on macOS.
+A beautiful, modern web application to download and convert YouTube videos to high-quality MP3 audio.
 
-## Features
+## Quick Start
 
-✨ **Simple GUI** - Clean, intuitive tkinter interface  
-📥 **Single Video Downloads** - Download one video at a time (no playlists)  
-🎵 **MP3 Conversion** - Automatically converts to 192kbps MP3  
-📊 **Progress Tracking** - Real-time download progress and status messages  
-✅ **FFmpeg Check** - Detects missing dependencies with clear error messages  
+### Option 1: Modern Web App (Recommended) ⭐
 
-## Requirements
-
-- **macOS** (tested on recent versions)
-- **Python 3.7+**
-- **FFmpeg** (for audio conversion)
-
-## Installation & Setup
-
-### 1. Install FFmpeg (if not already installed)
+Beautiful Next.js web interface with animations and professional design.
 
 ```bash
-brew install ffmpeg
+# One-time setup
+bash setup.sh
+
+# Terminal 1: Start backend
+cd api && source venv/bin/activate && python app.py
+
+# Terminal 2: Start frontend
+cd web && npm run dev
+
+# Open http://localhost:3000
 ```
 
-If you don't have Homebrew, install it first from https://brew.sh
+📖 **Full guide:** See [README_WEB.md](README_WEB.md)
 
-### 2. Clone or download this repository
+### Option 2: Desktop App (Python)
 
-```bash
-cd ~/Documents/yt2mp3
-```
-
-### 3. Create a Python virtual environment
+Traditional desktop app using Python and tkinter.
 
 ```bash
+# Setup
 python3 -m venv venv
-```
-
-### 4. Activate the virtual environment
-
-```bash
 source venv/bin/activate
-```
-
-### 5. Install Python dependencies
-
-```bash
-pip install --upgrade pip
 pip install -r requirements.txt
-```
-
-## Usage
-
-### Running the Application
-
-```bash
 python3 app.py
 ```
 
-The GUI will open. Simply:
+## Features
 
-1. **Paste a YouTube URL** in the text field
-2. **Click "Download as MP3"** or press Enter
-3. **Wait for the download to complete**
-4. **Find your MP3** in `~/Downloads/YouTube MP3s/`
+✨ **Modern Web UI** - React, Next.js, shadcn/ui  
+🎨 **Beautiful Animations** - Infinite grid background with framer-motion  
+📥 **Easy Downloads** - Simple, intuitive interface  
+🎵 **High Quality** - 128, 192, 256, 320 kbps MP3 conversion  
+💻 **Local & Private** - Runs on your machine, no uploads  
+🚀 **Fast & Responsive** - Real-time status updates  
 
-### Command-line shortcuts (optional)
+## Requirements
 
-Make the script executable:
-```bash
-chmod +x app.py
-```
+### For Web App
+- Node.js 18+
+- Python 3.8+
+- FFmpeg (`brew install ffmpeg` on macOS)
 
-Then run directly:
-```bash
-./app.py
-```
+### For Desktop App
+- Python 3.8+
+- FFmpeg (`brew install ffmpeg` on macOS)
 
-## File Structure
+## Project Structure
 
 ```
 yt2mp3/
-├── app.py                 # Main application
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
-└── .gitignore            # Git ignore rules
+├── web/                    # Next.js web app (recommended)
+├── api/                    # Python Flask backend
+├── app.py                  # Old tkinter desktop app
+├── setup.sh               # Automated setup script
+└── README_WEB.md          # Full web app documentation
 ```
-
-## Troubleshooting
-
-### "FFmpeg is not installed" error
-
-Run: `brew install ffmpeg`
-
-Then restart the application.
-
-### "This video is not available" error
-
-- The video might be private, age-restricted, or unavailable in your region
-- Check if you can access the video in your browser first
-
-### "Playlists are not supported" error
-
-This application downloads single videos only. Please provide a direct video URL, not a playlist URL.
-
-### Downloaded file is empty or incomplete
-
-- Check your internet connection
-- Try downloading a different video
-- Make sure you have enough disk space in `~/Downloads/`
 
 ## Legal Notice
 
 ⚠️ **For Personal Use Only**
 
-This tool is intended for personal, non-commercial use only. You are responsible for ensuring:
+This tool is for downloading content you have rights to. Respect copyright and content creators' rights. Do not use for:
+- Copyrighted content without permission
+- Commercial purposes
+- Violating YouTube's Terms of Service
 
-- You have the right to download the content
-- The content is not protected by copyright
-- You comply with YouTube's Terms of Service
-- You respect the rights of content creators
+## Support
 
-**Do not use this tool to:**
-- Download copyrighted content without permission
-- Infringe on intellectual property rights
-- Violate YouTube's Terms of Service
-- For commercial purposes
-
-## Dependencies
-
-- **yt-dlp** - YouTube video downloader and metadata extractor
-- **FFmpeg** - Audio/video processing (installed via Homebrew)
-- **tkinter** - GUI toolkit (included with Python)
-
-## License
-
-Use responsibly and respect content creators' rights.
+Having issues? Check [README_WEB.md](README_WEB.md) for troubleshooting.
 
 ---
 
-**Last updated:** 2026  
-**Platform:** macOS only
+**Built with Next.js, React, Tailwind CSS, Python, and yt-dlp**

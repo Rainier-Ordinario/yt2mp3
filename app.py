@@ -5,7 +5,7 @@ A simple GUI application to download and convert YouTube videos to MP3
 """
 
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, ttk
 import threading
 import os
 import subprocess
@@ -27,13 +27,19 @@ AUDIO_CODEC = "mp3"
 # YouTube domains to validate URLs
 YOUTUBE_DOMAINS = ["youtube.com", "youtu.be", "youtube.co"]
 
-# GUI styling
-TITLE_BGCOLOR = "#2c3e50"
-TITLE_HEIGHT = 60
-BUTTON_BGCOLOR = "#27ae60"
-STATUS_BGCOLOR = "#ecf0f1"
-FOOTER_BGCOLOR = "#ecf0f1"
-TEXT_COLOR_DARK = "#7f8c8d"
+# GUI styling - Professional color scheme with better contrast
+BG_PRIMARY = "#1a1f2e"  # Very dark navy background
+BG_SECONDARY = "#252d3d"  # Slightly lighter secondary
+BG_TERTIARY = "#2d3748"  # Tertiary background for sections
+ACCENT_COLOR = "#4f46e5"  # Deep indigo blue
+ACCENT_HOVER = "#4338ca"  # Darker indigo for hover
+TEXT_PRIMARY = "#ffffff"  # Pure white for maximum contrast
+TEXT_SECONDARY = "#e5e7eb"  # Very light gray
+TEXT_MUTED = "#9ca3af"  # Medium gray for secondary info
+BORDER_COLOR = "#374151"  # Border/separator color
+SUCCESS_COLOR = "#22c55e"  # Bright green
+ERROR_COLOR = "#ef4444"  # Bright red
+STATUS_BGCOLOR = "#252d3d"  # Status area background
 
 # Window dimensions
 WINDOW_WIDTH = 600
@@ -60,6 +66,8 @@ class YouTubeMP3Converter:
         self._create_download_folder()
 
         self._setup_ui()
+        self._setup_text_tags()
+        self._setup_styles()
         self.is_downloading = False
         self.selected_bitrate = AUDIO_BITRATE_DEFAULT  # Default to highest quality
 
@@ -99,108 +107,226 @@ class YouTubeMP3Converter:
 
     def _setup_ui(self):
         """Set up the GUI elements"""
-        # ===== TITLE SECTION =====
-        title_frame = tk.Frame(self.root, bg=TITLE_BGCOLOR, height=TITLE_HEIGHT)
+        # Set window background color
+        self.root.config(bg=BG_PRIMARY)
+
+        # ===== TITLE SECTION with gradient effect =====
+        title_frame = tk.Frame(self.root, bg=BG_SECONDARY, height=85)
         title_frame.pack(fill=tk.X, padx=0, pady=0)
         title_frame.pack_propagate(False)
 
+        # Main title
         title_label = tk.Label(
             title_frame,
             text="YouTube to MP3 Converter",
-            font=("Helvetica", 18, "bold"),
-            bg=TITLE_BGCOLOR,
-            fg="white"
+            font=("Helvetica", 26, "bold"),
+            bg=BG_SECONDARY,
+            fg=TEXT_PRIMARY
         )
-        title_label.pack(pady=15)
+        title_label.pack(pady=(20, 5))
+
+        # Subtitle with better contrast
+        subtitle_label = tk.Label(
+            title_frame,
+            text="Download and convert videos to high-quality MP3 audio",
+            font=("Helvetica", 10),
+            bg=BG_SECONDARY,
+            fg=TEXT_SECONDARY
+        )
+        subtitle_label.pack(pady=(0, 10))
 
         # ===== MAIN CONTENT SECTION =====
-        content_frame = tk.Frame(self.root)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        content_frame = tk.Frame(self.root, bg=BG_PRIMARY)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
 
-        # URL input field for YouTube links
-        url_label = tk.Label(content_frame, text="YouTube URL:", font=("Helvetica", 11, "bold"))
-        url_label.pack(anchor=tk.W, pady=(0, 5))
+        # URL input section with label
+        url_label = tk.Label(
+            content_frame,
+            text="YouTube URL",
+            font=("Helvetica", 12, "bold"),
+            bg=BG_PRIMARY,
+            fg=TEXT_PRIMARY
+        )
+        url_label.pack(anchor=tk.W, pady=(0, 8))
 
-        self.url_entry = tk.Entry(content_frame, font=("Helvetica", 10), width=50)
-        self.url_entry.pack(fill=tk.X, pady=(0, 15))
+        # URL entry field with improved styling and contrast
+        self.url_entry = tk.Entry(
+            content_frame,
+            font=("Helvetica", 12),
+            width=50,
+            bg=BG_TERTIARY,
+            fg=TEXT_PRIMARY,
+            insertbackground=ACCENT_COLOR,
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=2,
+            highlightcolor=ACCENT_COLOR,
+            highlightbackground=BORDER_COLOR
+        )
+        self.url_entry.pack(fill=tk.X, pady=(0, 25), ipady=12)
         # Allow pressing Enter to trigger download
         self.url_entry.bind("<Return>", lambda e: self._on_download_click())
 
-        # Audio quality selector
-        quality_frame = tk.Frame(content_frame)
-        quality_frame.pack(fill=tk.X, pady=(0, 15))
+        # Audio quality selector section
+        quality_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+        quality_frame.pack(fill=tk.X, pady=(0, 25))
 
-        quality_label = tk.Label(quality_frame, text="Audio Quality:", font=("Helvetica", 10, "bold"))
-        quality_label.pack(side=tk.LEFT, padx=(0, 10))
+        quality_label = tk.Label(
+            quality_frame,
+            text="Audio Quality",
+            font=("Helvetica", 12, "bold"),
+            bg=BG_PRIMARY,
+            fg=TEXT_PRIMARY
+        )
+        quality_label.pack(anchor=tk.W, pady=(0, 10))
+
+        # Quality selector row with better styling
+        quality_selector_frame = tk.Frame(quality_frame, bg=BG_PRIMARY)
+        quality_selector_frame.pack(fill=tk.X)
 
         self.quality_var = tk.StringVar(value=AUDIO_BITRATE_DEFAULT)
         quality_dropdown = tk.OptionMenu(
-            quality_frame,
+            quality_selector_frame,
             self.quality_var,
             *AUDIO_BITRATE_OPTIONS,
             command=self._on_quality_change
         )
-        quality_dropdown.config(font=("Helvetica", 10), bg="white")
-        quality_dropdown.pack(side=tk.LEFT)
-
-        # Display file size estimate for selected quality
-        self.quality_info_label = tk.Label(
-            quality_frame,
-            text="(~8-10 MB/min)",
-            font=("Helvetica", 9),
-            fg=TEXT_COLOR_DARK
+        quality_dropdown.config(
+            font=("Helvetica", 11),
+            bg=BG_TERTIARY,
+            fg=TEXT_PRIMARY,
+            activebackground=ACCENT_COLOR,
+            activeforeground=TEXT_PRIMARY,
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=0,
+            padx=12,
+            pady=6
         )
-        self.quality_info_label.pack(side=tk.LEFT, padx=(10, 0))
+        quality_dropdown.pack(side=tk.LEFT, padx=(0, 20))
 
-        # Download button
-        button_frame = tk.Frame(content_frame)
-        button_frame.pack(fill=tk.X, pady=(0, 15))
+        # Display file size estimate for selected quality with better contrast
+        self.quality_info_label = tk.Label(
+            quality_selector_frame,
+            text="(~10-12 MB/min)",
+            font=("Helvetica", 11),
+            bg=BG_PRIMARY,
+            fg=TEXT_SECONDARY
+        )
+        self.quality_info_label.pack(side=tk.LEFT)
+
+        # Download button with improved styling
+        button_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+        button_frame.pack(fill=tk.X, pady=(0, 30))
 
         self.download_btn = tk.Button(
             button_frame,
-            text="📥 Download as MP3",
+            text="Download as MP3",
             command=self._on_download_click,
-            font=("Helvetica", 11, "bold"),
-            bg=BUTTON_BGCOLOR,
-            fg="white",
-            padx=20,
-            pady=10,
-            cursor="hand2"
+            font=("Helvetica", 13, "bold"),
+            bg=ACCENT_COLOR,
+            fg=TEXT_PRIMARY,
+            activebackground=ACCENT_HOVER,
+            activeforeground=TEXT_PRIMARY,
+            padx=40,
+            pady=14,
+            cursor="hand2",
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=0
         )
         self.download_btn.pack(fill=tk.X)
 
+        # Progress bar section
+        self.progress_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+        self.progress_frame.pack(fill=tk.X, pady=(0, 20))
+
+        self.progress_bar = ttk.Progressbar(
+            self.progress_frame,
+            mode="indeterminate",
+            length=400
+        )
+        self.progress_bar.pack(fill=tk.X, pady=(0, 8))
+
         # Status display area with scrollbar for long output
-        status_label = tk.Label(content_frame, text="Status:", font=("Helvetica", 11, "bold"))
-        status_label.pack(anchor=tk.W, pady=(0, 5))
+        status_label = tk.Label(
+            content_frame,
+            text="Status & Messages",
+            font=("Helvetica", 12, "bold"),
+            bg=BG_PRIMARY,
+            fg=TEXT_PRIMARY
+        )
+        status_label.pack(anchor=tk.W, pady=(0, 10))
 
         self.status_text = scrolledtext.ScrolledText(
             content_frame,
-            height=12,
+            height=10,
             width=60,
-            font=("Courier", 9),
-            bg=STATUS_BGCOLOR,
+            font=("Courier", 10),
+            bg=BG_TERTIARY,
+            fg=TEXT_SECONDARY,
+            insertbackground=ACCENT_COLOR,
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=2,
+            highlightcolor=BORDER_COLOR,
+            highlightbackground=BORDER_COLOR,
             state=tk.DISABLED
         )
         self.status_text.pack(fill=tk.BOTH, expand=True)
 
         # ===== FOOTER SECTION =====
-        footer_frame = tk.Frame(self.root, bg=FOOTER_BGCOLOR)
+        footer_frame = tk.Frame(self.root, bg=BG_SECONDARY, height=60)
         footer_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        footer_frame.pack_propagate(False)
 
         # Display the download folder path for user reference
         footer_label = tk.Label(
             footer_frame,
-            text=f"Downloads saved to: {self.download_folder}",
-            font=("Helvetica", 9),
-            bg=FOOTER_BGCOLOR,
-            fg=TEXT_COLOR_DARK
+            text=f"Saves to:  {self.download_folder}",
+            font=("Helvetica", 10),
+            bg=BG_SECONDARY,
+            fg=TEXT_SECONDARY
         )
-        footer_label.pack(padx=15, pady=8, anchor=tk.W)
+        footer_label.pack(padx=25, pady=18, anchor=tk.W)
+
+    def _setup_text_tags(self):
+        """Configure text tags for color coding status messages with high contrast"""
+        self.status_text.tag_config("success", foreground=SUCCESS_COLOR)  # Bright green
+        self.status_text.tag_config("error", foreground=ERROR_COLOR)  # Bright red
+        self.status_text.tag_config("download", foreground=ACCENT_COLOR)  # Indigo blue
+        self.status_text.tag_config("info", foreground=TEXT_SECONDARY)  # Light gray
+
+    def _setup_styles(self):
+        """Configure ttk widget styles"""
+        style = ttk.Style()
+        style.theme_use("clam")  # Use clam theme for better customization
+
+        # Configure progress bar style
+        style.configure(
+            "TProgressbar",
+            background=ACCENT_COLOR,
+            troughcolor=BG_SECONDARY,
+            bordercolor=BORDER_COLOR,
+            lightcolor=ACCENT_COLOR,
+            darkcolor=ACCENT_COLOR
+        )
 
     def _log(self, message: str):
-        """Append message to status text area"""
+        """Append message to status text area with color coding"""
         self.status_text.config(state=tk.NORMAL)
-        self.status_text.insert(tk.END, message + "\n")
+
+        # Color code messages based on content
+        if "✅" in message or "Success" in message:
+            tag = "success"
+        elif "❌" in message or "Error" in message:
+            tag = "error"
+        elif "⬇️" in message or "downloading" in message.lower():
+            tag = "download"
+        else:
+            tag = "info"
+
+        self.status_text.insert(tk.END, message + "\n", tag)
         self.status_text.see(tk.END)
         self.status_text.config(state=tk.DISABLED)
         self.root.update()
@@ -253,6 +379,9 @@ class YouTubeMP3Converter:
         thread = threading.Thread(target=self._download_video, args=(url,))
         thread.daemon = True
         thread.start()
+
+        # Show progress bar during download
+        self.progress_bar.start()
 
     def _download_video(self, url: str):
         """Download and convert YouTube video to MP3"""
@@ -318,6 +447,8 @@ class YouTubeMP3Converter:
             self.is_downloading = False
             self.download_btn.config(state=tk.NORMAL)
             self.url_entry.delete(0, tk.END)
+            # Stop the progress bar animation
+            self.progress_bar.stop()
 
     def _progress_hook(self, d):
         """Handle download progress updates from yt-dlp"""

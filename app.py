@@ -25,6 +25,9 @@ AUDIO_BITRATE_DEFAULT = "320"  # kbps (highest MP3 quality)
 AUDIO_BITRATE_OPTIONS = ["128", "192", "256", "320"]  # Available quality options
 AUDIO_CODEC = "mp3"
 
+# Reject videos longer than this to avoid huge downloads/conversions
+MAX_DURATION_SECONDS = 2 * 60 * 60  # 2 hours
+
 # Exact hosts we accept. A substring check ("youtube.com" in url) is
 # bypassable with URLs like https://evil.com/?x=youtube.com, so match the
 # parsed hostname against this allowlist instead.
@@ -423,8 +426,12 @@ class YouTubeMP3Converter:
                     "preferredcodec": AUDIO_CODEC,
                     "preferredquality": self.selected_bitrate,
                 }],
-                # Output filename template (uses video title)
-                "outtmpl": os.path.join(self.download_folder, "%(title)s.%(ext)s"),
+                # Output filename: include video id and restrict to safe
+                # ASCII so a crafted title can't collide with another file.
+                "outtmpl": os.path.join(
+                    self.download_folder, "%(title)s [%(id)s].%(ext)s"
+                ),
+                "restrictfilenames": True,
                 "quiet": False,
                 "no_warnings": False,
                 "noplaylist": True,  # Enforce single video only, reject playlists
@@ -438,6 +445,19 @@ class YouTubeMP3Converter:
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 self._log("📝 Video title: Fetching...")
+
+                # Check duration before downloading a multi-hour video
+                meta = ydl.extract_info(url, download=False)
+                duration = (meta or {}).get("duration") or 0
+                if duration > MAX_DURATION_SECONDS:
+                    msg = (
+                        f"Video is too long ({duration // 60} min). "
+                        f"Maximum is {MAX_DURATION_SECONDS // 60} minutes."
+                    )
+                    self._log(f"❌ Error: {msg}")
+                    messagebox.showerror("Download Failed", msg)
+                    return
+
                 info = ydl.extract_info(url, download=True)
                 video_title = info.get("title", "Unknown")
                 self._log(f"✅ Successfully downloaded: {video_title}")

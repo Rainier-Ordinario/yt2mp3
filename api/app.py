@@ -24,6 +24,7 @@ CORS(app, resources={
 # Configuration
 DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
 AUDIO_CODEC = "mp3"
+MAX_DURATION_SECONDS = 2 * 60 * 60  # reject videos longer than 2 hours
 
 # Ensure download folder exists
 Path(DOWNLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -110,7 +111,10 @@ def download():
                 "preferredcodec": AUDIO_CODEC,
                 "preferredquality": bitrate,
             }],
-            "outtmpl": os.path.join(DOWNLOAD_FOLDER, "%(title)s.%(ext)s"),
+            # Include the video id and restrict to safe ASCII filenames so a
+            # crafted title can't collide with or overwrite another file.
+            "outtmpl": os.path.join(DOWNLOAD_FOLDER, "%(title)s [%(id)s].%(ext)s"),
+            "restrictfilenames": True,
             "quiet": False,
             "no_warnings": False,
             "noplaylist": True,  # Single video only
@@ -122,6 +126,18 @@ def download():
 
         # Download and convert
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Check duration before downloading to avoid resource exhaustion
+            # from someone requesting a multi-hour video.
+            meta = ydl.extract_info(url, download=False)
+            duration = (meta or {}).get("duration") or 0
+            if duration > MAX_DURATION_SECONDS:
+                return jsonify({
+                    "error": (
+                        f"Video is too long ({duration // 60} min). "
+                        f"Maximum is {MAX_DURATION_SECONDS // 60} minutes."
+                    )
+                }), 400
+
             info = ydl.extract_info(url, download=True)
             video_title = info.get("title", "Unknown")
             duration = info.get("duration", 0)

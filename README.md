@@ -8,18 +8,33 @@ A beautiful, modern web application to download and convert YouTube videos to hi
 
 Beautiful Next.js web interface with animations and professional design.
 
+**One-time setup:**
 ```bash
-# One-time setup
 bash setup.sh
+```
 
+**Start the app (single command):**
+```bash
+./start.sh
+```
+
+This runs both the backend and frontend together. Press `Ctrl+C` to stop both.
+
+Then open **http://localhost:3000**
+
+<details>
+<summary>Alternative: run in two separate terminals</summary>
+
+Useful for development when you want to see backend and frontend logs separately:
+
+```bash
 # Terminal 1: Start backend
 cd api && source venv/bin/activate && python app.py
 
 # Terminal 2: Start frontend
 cd web && npm run dev
-
-# Open http://localhost:3000
 ```
+</details>
 
 📖 **Full guide:** See [README_WEB.md](README_WEB.md)
 

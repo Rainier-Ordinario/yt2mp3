@@ -271,5 +271,5 @@ Use responsibly and respect content creators' rights.
 - 🐍 Python & Flask
 - ✨ Framer Motion
 
-**Last Updated:** 2026  
+**Last Updated:** May 2026  
 **Platform:** macOS, Linux, Windows (with WSL)

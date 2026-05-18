@@ -208,3 +208,7 @@ __marimo__/
 
 # YouTube MP3 Downloads folder
 ~/Downloads/YouTube MP3s/
+
+# macOS
+.DS_Store
+**/.DS_Store

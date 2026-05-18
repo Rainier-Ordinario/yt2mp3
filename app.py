@@ -10,6 +10,7 @@ import threading
 import os
 import subprocess
 from pathlib import Path
+from urllib.parse import urlparse
 import yt_dlp
 
 # ============================================================================
@@ -24,8 +25,16 @@ AUDIO_BITRATE_DEFAULT = "320"  # kbps (highest MP3 quality)
 AUDIO_BITRATE_OPTIONS = ["128", "192", "256", "320"]  # Available quality options
 AUDIO_CODEC = "mp3"
 
-# YouTube domains to validate URLs
-YOUTUBE_DOMAINS = ["youtube.com", "youtu.be", "youtube.co"]
+# Exact hosts we accept. A substring check ("youtube.com" in url) is
+# bypassable with URLs like https://evil.com/?x=youtube.com, so match the
+# parsed hostname against this allowlist instead.
+ALLOWED_YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+}
 
 # GUI styling - Professional color scheme with better contrast
 BG_PRIMARY = "#1a1f2e"  # Very dark navy background
@@ -47,6 +56,18 @@ WINDOW_HEIGHT = 500
 
 # Timeouts and delays
 SOCKET_TIMEOUT = 30
+
+
+def is_valid_youtube_url(url: str) -> bool:
+    """Return True only if url is an http(s) URL on a known YouTube host."""
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in ALLOWED_YOUTUBE_HOSTS
 
 
 class YouTubeMP3Converter:
@@ -357,8 +378,8 @@ class YouTubeMP3Converter:
             messagebox.showwarning("Empty URL", "Please enter a YouTube URL")
             return False
 
-        # Check if URL contains any known YouTube domains
-        if not any(domain in url for domain in YOUTUBE_DOMAINS):
+        # Check the parsed hostname against the allowlist
+        if not is_valid_youtube_url(url):
             messagebox.showwarning("Invalid URL", "Please enter a valid YouTube URL")
             return False
 

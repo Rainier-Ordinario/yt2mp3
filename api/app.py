@@ -10,6 +10,7 @@ import os
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -26,6 +27,29 @@ AUDIO_CODEC = "mp3"
 
 # Ensure download folder exists
 Path(DOWNLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
+
+# Exact hosts we accept. A substring check (e.g. "youtube.com" in url) is
+# bypassable with URLs like https://evil.com/?x=youtube.com, so match the
+# parsed hostname against this allowlist instead.
+ALLOWED_YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+}
+
+
+def is_valid_youtube_url(url: str) -> bool:
+    """Return True only if url is an http(s) URL on a known YouTube host."""
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in ALLOWED_YOUTUBE_HOSTS
 
 
 def check_ffmpeg():
@@ -69,8 +93,7 @@ def download():
             return jsonify({"error": "URL is required"}), 400
 
         # Validate YouTube URL
-        youtube_domains = ["youtube.com", "youtu.be", "youtube.co"]
-        if not any(domain in url for domain in youtube_domains):
+        if not is_valid_youtube_url(url):
             return jsonify({"error": "Invalid YouTube URL"}), 400
 
         # Check ffmpeg

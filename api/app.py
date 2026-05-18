@@ -162,15 +162,22 @@ def download():
                 "error": "Playlists are not supported. Please provide a single video URL"
             }), 400
         else:
-            return jsonify({"error": error_msg}), 400
+            # Log the full yt-dlp error server-side, but don't echo it back
+            # to the client (it can contain file paths and internals).
+            print(f"❌ DownloadError: {error_msg}")
+            return jsonify({
+                "error": "Could not download this video. It may be "
+                         "unavailable, age-restricted, or region-locked."
+            }), 400
 
     except Exception as e:
-        error_msg = str(e)
-        print(f"❌ Unexpected error: {error_msg}")
+        # Log full detail server-side; return a generic message so we don't
+        # leak internals (paths, stack frames) to the client.
+        print(f"❌ Unexpected error: {e}")
         import traceback
         print(traceback.format_exc())
         return jsonify({
-            "error": f"An error occurred: {error_msg}"
+            "error": "An internal error occurred. Please try again."
         }), 500
 
 

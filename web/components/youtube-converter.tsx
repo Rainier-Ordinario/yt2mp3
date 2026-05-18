@@ -120,7 +120,7 @@ export function YouTubeConverter() {
           placeholder="https://www.youtube.com/watch?v=..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleDownload()}
+          onKeyDown={(e) => e.key === "Enter" && handleDownload()}
           disabled={isLoading}
           className="text-base h-11"
         />

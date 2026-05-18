@@ -20,7 +20,9 @@ const QUALITY_OPTIONS = [
   { value: "320", label: "320 kbps (10-12 MB/min) - Best" },
 ];
 
-const API_URL = "http://localhost:8000";
+// Direct process.env reference so Next.js can inline it at build time.
+// Falls back to localhost so local dev works with no configuration.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export function YouTubeConverter() {
   const [url, setUrl] = useState("");

@@ -170,4 +170,7 @@ if __name__ == "__main__":
     print("✓ Starting Flask API server on http://localhost:8000")
     print("✓ Press Ctrl+C to stop")
 
-    app.run(debug=True, port=8000)
+    # Debug mode exposes the Werkzeug debugger (arbitrary code execution if
+    # the port is reachable). Off by default; opt in locally with FLASK_DEBUG=1.
+    debug_enabled = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(debug=debug_enabled, port=8000)

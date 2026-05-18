@@ -3,14 +3,17 @@ YouTube to MP3 Converter - Flask Backend API
 Handles video downloading and MP3 conversion using yt-dlp and ffmpeg
 """
 
+import os
+import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import yt_dlp
-import os
-import subprocess
 from pathlib import Path
 from datetime import datetime
-from urllib.parse import urlparse
+
+# Import the shared core module from the repo root regardless of cwd.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import core  # noqa: E402
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -21,56 +24,18 @@ CORS(app, resources={
     }
 })
 
-# Configuration
-DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
-AUDIO_CODEC = "mp3"
-MAX_DURATION_SECONDS = 2 * 60 * 60  # reject videos longer than 2 hours
+# Configuration (shared values live in core.py)
+DOWNLOAD_FOLDER = core.DOWNLOAD_FOLDER
+MAX_DURATION_SECONDS = core.MAX_DURATION_SECONDS
 
 # Ensure download folder exists
 Path(DOWNLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
-
-# Exact hosts we accept. A substring check (e.g. "youtube.com" in url) is
-# bypassable with URLs like https://evil.com/?x=youtube.com, so match the
-# parsed hostname against this allowlist instead.
-ALLOWED_YOUTUBE_HOSTS = {
-    "youtube.com",
-    "www.youtube.com",
-    "m.youtube.com",
-    "music.youtube.com",
-    "youtu.be",
-}
-
-
-def is_valid_youtube_url(url: str) -> bool:
-    """Return True only if url is an http(s) URL on a known YouTube host."""
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https"):
-        return False
-    host = (parsed.hostname or "").lower()
-    return host in ALLOWED_YOUTUBE_HOSTS
-
-
-def check_ffmpeg():
-    """Check if ffmpeg is installed"""
-    try:
-        subprocess.run(
-            ["ffmpeg", "-version"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
 
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """Health check endpoint"""
-    ffmpeg_available = check_ffmpeg()
+    ffmpeg_available = core.check_ffmpeg()
     return jsonify({
         "status": "ok",
         "ffmpeg": ffmpeg_available,
@@ -94,35 +59,17 @@ def download():
             return jsonify({"error": "URL is required"}), 400
 
         # Validate YouTube URL
-        if not is_valid_youtube_url(url):
+        if not core.is_valid_youtube_url(url):
             return jsonify({"error": "Invalid YouTube URL"}), 400
 
         # Check ffmpeg
-        if not check_ffmpeg():
+        if not core.check_ffmpeg():
             return jsonify({
                 "error": "FFmpeg is not installed. Install it with: brew install ffmpeg"
             }), 500
 
-        # Configure yt-dlp options
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": AUDIO_CODEC,
-                "preferredquality": bitrate,
-            }],
-            # Include the video id and restrict to safe ASCII filenames so a
-            # crafted title can't collide with or overwrite another file.
-            "outtmpl": os.path.join(DOWNLOAD_FOLDER, "%(title)s [%(id)s].%(ext)s"),
-            "restrictfilenames": True,
-            "quiet": False,
-            "no_warnings": False,
-            "noplaylist": True,  # Single video only
-            "socket_timeout": 30,
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (compatible; YouTube-MP3-Converter)"
-            },
-        }
+        # Configure yt-dlp options (shared with the desktop app)
+        ydl_opts = core.build_ydl_opts(DOWNLOAD_FOLDER, bitrate)
 
         # Download and convert
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -186,10 +133,8 @@ def get_formats():
     """Get available audio quality formats"""
     return jsonify({
         "formats": [
-            {"value": "128", "label": "128 kbps (4-5 MB/min)" },
-            {"value": "192", "label": "192 kbps (6-7 MB/min)" },
-            {"value": "256", "label": "256 kbps (8-9 MB/min)" },
-            {"value": "320", "label": "320 kbps (10-12 MB/min) - Best" },
+            {"value": opt["value"], "label": opt["label"]}
+            for opt in core.QUALITY_OPTIONS
         ]
     })
 
@@ -208,7 +153,7 @@ def internal_error(error):
 
 if __name__ == "__main__":
     # Check dependencies on startup
-    if not check_ffmpeg():
+    if not core.check_ffmpeg():
         print("⚠️  Warning: FFmpeg is not installed")
         print("Install it with: brew install ffmpeg")
 

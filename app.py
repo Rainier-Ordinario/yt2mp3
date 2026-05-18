@@ -7,37 +7,19 @@ A simple GUI application to download and convert YouTube videos to MP3
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import threading
-import os
-import subprocess
 from pathlib import Path
-from urllib.parse import urlparse
 import yt_dlp
+import core
 
 # ============================================================================
 # Configuration Constants - Easy to modify
 # ============================================================================
 
-# Download folder location (uses ~ for home directory, no hardcoded usernames)
-DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
-
-# Audio quality settings
-AUDIO_BITRATE_DEFAULT = "320"  # kbps (highest MP3 quality)
-AUDIO_BITRATE_OPTIONS = ["128", "192", "256", "320"]  # Available quality options
-AUDIO_CODEC = "mp3"
-
-# Reject videos longer than this to avoid huge downloads/conversions
-MAX_DURATION_SECONDS = 2 * 60 * 60  # 2 hours
-
-# Exact hosts we accept. A substring check ("youtube.com" in url) is
-# bypassable with URLs like https://evil.com/?x=youtube.com, so match the
-# parsed hostname against this allowlist instead.
-ALLOWED_YOUTUBE_HOSTS = {
-    "youtube.com",
-    "www.youtube.com",
-    "m.youtube.com",
-    "music.youtube.com",
-    "youtu.be",
-}
+# Shared values (folder, bitrates, limits, host allowlist) live in core.py
+DOWNLOAD_FOLDER = core.DOWNLOAD_FOLDER
+AUDIO_BITRATE_DEFAULT = core.DEFAULT_BITRATE
+AUDIO_BITRATE_OPTIONS = core.BITRATE_VALUES
+MAX_DURATION_SECONDS = core.MAX_DURATION_SECONDS
 
 # GUI styling - Professional color scheme with better contrast
 BG_PRIMARY = "#1a1f2e"  # Very dark navy background
@@ -56,21 +38,6 @@ STATUS_BGCOLOR = "#252d3d"  # Status area background
 # Window dimensions
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 500
-
-# Timeouts and delays
-SOCKET_TIMEOUT = 30
-
-
-def is_valid_youtube_url(url: str) -> bool:
-    """Return True only if url is an http(s) URL on a known YouTube host."""
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        return False
-    if parsed.scheme not in ("http", "https"):
-        return False
-    host = (parsed.hostname or "").lower()
-    return host in ALLOWED_YOUTUBE_HOSTS
 
 
 class YouTubeMP3Converter:
@@ -97,16 +64,7 @@ class YouTubeMP3Converter:
 
     def _check_ffmpeg(self) -> bool:
         """Check if ffmpeg is installed"""
-        try:
-            subprocess.run(
-                ["ffmpeg", "-version"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True
-            )
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            return False
+        return core.check_ffmpeg()
 
     def _show_ffmpeg_error(self):
         """Show error dialog if ffmpeg is not installed"""
@@ -366,14 +324,9 @@ class YouTubeMP3Converter:
         self.selected_bitrate = selected_quality
 
         # Update file size estimate based on bitrate
-        # MP3 file size ≈ bitrate × duration (rough estimate: ~1 MB per 10 seconds at 128kbps)
-        size_estimates = {
-            "128": "(~4-5 MB/min)",
-            "192": "(~6-7 MB/min)",
-            "256": "(~8-9 MB/min)",
-            "320": "(~10-12 MB/min)",
-        }
-        self.quality_info_label.config(text=size_estimates.get(selected_quality, ""))
+        self.quality_info_label.config(
+            text=core.SIZE_BY_BITRATE.get(selected_quality, "")
+        )
 
     def _validate_url(self, url: str) -> bool:
         """Validate if URL is a YouTube URL"""
@@ -382,7 +335,7 @@ class YouTubeMP3Converter:
             return False
 
         # Check the parsed hostname against the allowlist
-        if not is_valid_youtube_url(url):
+        if not core.is_valid_youtube_url(url):
             messagebox.showwarning("Invalid URL", "Please enter a valid YouTube URL")
             return False
 
@@ -416,32 +369,12 @@ class YouTubeMP3Converter:
             self._clear_log()
             self._log("🔍 Fetching video information...")
 
-            # Configure yt-dlp options for audio extraction
-            ydl_opts = {
-                # Download best available audio quality
-                "format": "bestaudio/best",
-                # Post-processor: extract audio and convert to MP3 at selected quality
-                "postprocessors": [{
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": AUDIO_CODEC,
-                    "preferredquality": self.selected_bitrate,
-                }],
-                # Output filename: include video id and restrict to safe
-                # ASCII so a crafted title can't collide with another file.
-                "outtmpl": os.path.join(
-                    self.download_folder, "%(title)s [%(id)s].%(ext)s"
-                ),
-                "restrictfilenames": True,
-                "quiet": False,
-                "no_warnings": False,
-                "noplaylist": True,  # Enforce single video only, reject playlists
-                "socket_timeout": SOCKET_TIMEOUT,
-                # Standard browser User-Agent (not hardcoded to specific OS version)
-                "http_headers": {
-                    "User-Agent": "Mozilla/5.0 (compatible; YouTube-MP3-Converter)"
-                },
-                "progress_hooks": [self._progress_hook],
-            }
+            # Configure yt-dlp options (shared with the Flask API)
+            ydl_opts = core.build_ydl_opts(
+                self.download_folder,
+                self.selected_bitrate,
+                progress_hooks=[self._progress_hook],
+            )
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 self._log("📝 Video title: Fetching...")

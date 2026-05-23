@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import axios from "axios";
+import { useDownload } from "@/lib/use-download";
 
 const QUALITY_OPTIONS = [
   { value: "128", label: "128 kbps (4-5 MB/min)" },
@@ -20,62 +20,14 @@ const QUALITY_OPTIONS = [
   { value: "320", label: "320 kbps (10-12 MB/min) - Best" },
 ];
 
-// Direct process.env reference so Next.js can inline it at build time.
-// Falls back to localhost so local dev works with no configuration.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 export function YouTubeConverter() {
   const [url, setUrl] = useState("");
   const [quality, setQuality] = useState("320");
-  const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<string[]>([]);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const addStatus = (message: string) => {
-    setStatus((prev) => [...prev, message]);
-  };
-
-  const clearStatus = () => {
-    setStatus([]);
-    setError("");
-    setSuccess("");
-  };
+  const { isLoading, error, success, download } = useDownload();
 
   const handleDownload = async () => {
-    if (!url.trim()) {
-      setError("Please enter a YouTube URL");
-      return;
-    }
-
-    clearStatus();
-    setIsLoading(true);
-
-    try {
-      addStatus("Validating URL...");
-      addStatus("Fetching video information...");
-
-      const response = await axios.post(`${API_URL}/api/download`, {
-        url: url.trim(),
-        bitrate: quality,
-      });
-
-      if (response.status === 200) {
-        addStatus(`Successfully downloaded: ${response.data.title}`);
-        addStatus(`Quality: ${quality} kbps`);
-        addStatus("Converting to MP3...");
-        setSuccess(`Downloaded: ${response.data.title}`);
-        setUrl("");
-        setStatus([]);
-      }
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.error || err.message || "Download failed";
-      setError(errorMessage);
-      addStatus(`Error: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
+    const ok = await download(url, quality);
+    if (ok) setUrl("");
   };
 
   const containerVariants = {
@@ -131,7 +83,11 @@ export function YouTubeConverter() {
         <label className="block text-sm font-semibold text-foreground text-left">
           Audio Quality
         </label>
-        <Select value={quality} onValueChange={setQuality} disabled={isLoading}>
+        <Select
+          value={quality}
+          onValueChange={(value) => value && setQuality(value)}
+          disabled={isLoading}
+        >
           <SelectTrigger className="h-11 text-base">
             <SelectValue />
           </SelectTrigger>
@@ -156,23 +112,6 @@ export function YouTubeConverter() {
           {isLoading ? "Downloading..." : "Download as MP3"}
         </Button>
       </motion.div>
-
-      {/* Status Messages */}
-      {status.length > 0 && (
-        <motion.div
-          className="w-full max-w-xl p-4 rounded-lg bg-secondary/50 border border-border space-y-2"
-          variants={itemVariants}
-        >
-          <p className="text-sm font-semibold text-foreground text-left">
-            Status
-          </p>
-          <div className="space-y-1 text-sm text-muted-foreground text-left font-mono">
-            {status.map((msg, idx) => (
-              <div key={idx}>→ {msg}</div>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* Error Message */}
       {error && (
@@ -200,7 +139,7 @@ export function YouTubeConverter() {
         variants={itemVariants}
       >
         <p className="opacity-75">Saves to: ~/Downloads/YouTube MP3s</p>
-        <p className="opacity-75">For personal use only. Respect content creators' rights.</p>
+        <p className="opacity-75">For personal use only. Respect content creators&rsquo; rights.</p>
       </motion.div>
     </motion.div>
   );

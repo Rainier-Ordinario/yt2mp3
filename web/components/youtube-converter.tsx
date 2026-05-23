@@ -12,17 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDownload } from "@/lib/use-download";
-
-const QUALITY_OPTIONS = [
-  { value: "128", label: "128 kbps (4-5 MB/min)" },
-  { value: "192", label: "192 kbps (6-7 MB/min)" },
-  { value: "256", label: "256 kbps (8-9 MB/min)" },
-  { value: "320", label: "320 kbps (10-12 MB/min) - Best" },
-];
+import { useQualityOptions } from "@/lib/use-quality-options";
 
 export function YouTubeConverter() {
   const [url, setUrl] = useState("");
   const [quality, setQuality] = useState("320");
+  const qualityOptions = useQualityOptions();
   const { isLoading, error, success, download } = useDownload();
 
   const handleDownload = async () => {
@@ -92,7 +87,7 @@ export function YouTubeConverter() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {QUALITY_OPTIONS.map((opt) => (
+            {qualityOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>

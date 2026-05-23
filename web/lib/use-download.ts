@@ -1,9 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-
-// Direct process.env reference so Next.js can inline it at build time.
-// Falls back to localhost so local dev works with no configuration.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_URL } from "./api";
 
 export interface UseDownload {
   isLoading: boolean;

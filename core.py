@@ -10,6 +10,8 @@ import os
 import subprocess
 from urllib.parse import urlparse
 
+import yt_dlp
+
 # Where finished MP3s are written (no hardcoded usernames)
 DOWNLOAD_FOLDER = os.path.expanduser("~/Downloads/YouTube MP3s")
 
@@ -44,6 +46,52 @@ ALLOWED_YOUTUBE_HOSTS = {
     "music.youtube.com",
     "youtu.be",
 }
+
+
+class AudioDownloadError(Exception):
+    """An expected, user-facing download failure.
+
+    The message is safe to show to a user; `detail` holds the raw cause
+    (e.g. the original yt-dlp message) for server-side / status logging.
+    """
+
+    def __init__(self, message: str, detail: str | None = None):
+        super().__init__(message)
+        self.detail = detail
+
+
+class VideoTooLongError(AudioDownloadError):
+    pass
+
+
+class VideoUnavailableError(AudioDownloadError):
+    pass
+
+
+class PlaylistNotSupportedError(AudioDownloadError):
+    pass
+
+
+class DownloadFailedError(AudioDownloadError):
+    pass
+
+
+def classify_download_error(message: str) -> AudioDownloadError:
+    """Map a raw yt-dlp DownloadError message to a typed, user-facing error."""
+    if "This video is not available" in message or "Private" in message:
+        return VideoUnavailableError(
+            "This video is not available or is private", detail=message
+        )
+    if "playlist" in message.lower():
+        return PlaylistNotSupportedError(
+            "Playlists are not supported. Please provide a single video URL",
+            detail=message,
+        )
+    return DownloadFailedError(
+        "Could not download this video. It may be unavailable, "
+        "age-restricted, or region-locked.",
+        detail=message,
+    )
 
 
 def is_valid_youtube_url(url: str) -> bool:
@@ -98,3 +146,27 @@ def build_ydl_opts(download_folder: str, bitrate: str, progress_hooks=None) -> d
     if progress_hooks:
         opts["progress_hooks"] = progress_hooks
     return opts
+
+
+def download_audio(url, bitrate, download_folder, progress_hooks=None) -> dict:
+    """Download a single video's audio as MP3.
+
+    Returns the yt-dlp info dict on success. Raises an AudioDownloadError
+    subclass for expected failures (too long, unavailable, playlist, ...);
+    any other exception propagates unchanged.
+    """
+    opts = build_ydl_opts(download_folder, bitrate, progress_hooks=progress_hooks)
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            # Check duration before downloading to avoid resource exhaustion
+            # from someone requesting a multi-hour video.
+            meta = ydl.extract_info(url, download=False)
+            duration = (meta or {}).get("duration") or 0
+            if duration > MAX_DURATION_SECONDS:
+                raise VideoTooLongError(
+                    f"Video is too long ({duration // 60} min). "
+                    f"Maximum is {MAX_DURATION_SECONDS // 60} minutes."
+                )
+            return ydl.extract_info(url, download=True)
+    except yt_dlp.utils.DownloadError as e:
+        raise classify_download_error(str(e)) from e

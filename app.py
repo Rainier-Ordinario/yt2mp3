@@ -8,7 +8,6 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import threading
 from pathlib import Path
-import yt_dlp
 import core
 
 # ============================================================================
@@ -19,7 +18,6 @@ import core
 DOWNLOAD_FOLDER = core.DOWNLOAD_FOLDER
 AUDIO_BITRATE_DEFAULT = core.DEFAULT_BITRATE
 AUDIO_BITRATE_OPTIONS = core.BITRATE_VALUES
-MAX_DURATION_SECONDS = core.MAX_DURATION_SECONDS
 
 # GUI styling - Professional color scheme with better contrast
 BG_PRIMARY = "#1a1f2e"  # Very dark navy background
@@ -368,47 +366,24 @@ class YouTubeMP3Converter:
         try:
             self._clear_log()
             self._log("🔍 Fetching video information...")
+            self._log("📝 Video title: Fetching...")
 
-            # Configure yt-dlp options (shared with the Flask API)
-            ydl_opts = core.build_ydl_opts(
-                self.download_folder,
+            # Download and convert (shared orchestration with the Flask API)
+            info = core.download_audio(
+                url,
                 self.selected_bitrate,
+                self.download_folder,
                 progress_hooks=[self._progress_hook],
             )
+            video_title = info.get("title", "Unknown")
+            self._log(f"✅ Successfully downloaded: {video_title}")
+            self._log(f"💾 Saved to: {self.download_folder}")
+            messagebox.showinfo("Success", f"Downloaded: {video_title}\n\nSaved to Downloads folder")
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                self._log("📝 Video title: Fetching...")
-
-                # Check duration before downloading a multi-hour video
-                meta = ydl.extract_info(url, download=False)
-                duration = (meta or {}).get("duration") or 0
-                if duration > MAX_DURATION_SECONDS:
-                    msg = (
-                        f"Video is too long ({duration // 60} min). "
-                        f"Maximum is {MAX_DURATION_SECONDS // 60} minutes."
-                    )
-                    self._log(f"❌ Error: {msg}")
-                    messagebox.showerror("Download Failed", msg)
-                    return
-
-                info = ydl.extract_info(url, download=True)
-                video_title = info.get("title", "Unknown")
-                self._log(f"✅ Successfully downloaded: {video_title}")
-                self._log(f"💾 Saved to: {self.download_folder}")
-                messagebox.showinfo("Success", f"Downloaded: {video_title}\n\nSaved to Downloads folder")
-
-        except yt_dlp.utils.DownloadError as e:
-            # Handle specific download errors with user-friendly messages
-            error_msg = str(e)
-            if "This video is not available" in error_msg or "Private" in error_msg:
-                self._log("❌ Error: This video is not available or is private")
-                messagebox.showerror("Download Failed", "This video is not available or is private")
-            elif "playlist" in error_msg.lower():
-                self._log("❌ Error: Playlists are not supported. Please provide a single video URL")
-                messagebox.showerror("Download Failed", "Playlists are not supported.\nPlease provide a single video URL")
-            else:
-                self._log(f"❌ Error: {error_msg}")
-                messagebox.showerror("Download Failed", error_msg)
+        except core.AudioDownloadError as e:
+            # Expected failure: show the user-safe message, log the raw cause
+            self._log(f"❌ Error: {e.detail or e}")
+            messagebox.showerror("Download Failed", str(e))
 
         except Exception as e:
             # Catch any other unexpected errors

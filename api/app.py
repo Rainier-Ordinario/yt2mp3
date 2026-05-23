@@ -7,7 +7,6 @@ import os
 import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import yt_dlp
 from pathlib import Path
 from datetime import datetime
 
@@ -26,7 +25,6 @@ CORS(app, resources={
 
 # Configuration (shared values live in core.py)
 DOWNLOAD_FOLDER = core.DOWNLOAD_FOLDER
-MAX_DURATION_SECONDS = core.MAX_DURATION_SECONDS
 
 # Ensure download folder exists
 Path(DOWNLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -68,54 +66,23 @@ def download():
                 "error": "FFmpeg is not installed. Install it with: brew install ffmpeg"
             }), 500
 
-        # Configure yt-dlp options (shared with the desktop app)
-        ydl_opts = core.build_ydl_opts(DOWNLOAD_FOLDER, bitrate)
+        # Download and convert (shared orchestration with the desktop app)
+        info = core.download_audio(url, bitrate, DOWNLOAD_FOLDER)
+        return jsonify({
+            "success": True,
+            "title": info.get("title", "Unknown"),
+            "duration": info.get("duration", 0),
+            "bitrate": bitrate,
+            "save_location": DOWNLOAD_FOLDER,
+            "timestamp": datetime.now().isoformat()
+        })
 
-        # Download and convert
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Check duration before downloading to avoid resource exhaustion
-            # from someone requesting a multi-hour video.
-            meta = ydl.extract_info(url, download=False)
-            duration = (meta or {}).get("duration") or 0
-            if duration > MAX_DURATION_SECONDS:
-                return jsonify({
-                    "error": (
-                        f"Video is too long ({duration // 60} min). "
-                        f"Maximum is {MAX_DURATION_SECONDS // 60} minutes."
-                    )
-                }), 400
-
-            info = ydl.extract_info(url, download=True)
-            video_title = info.get("title", "Unknown")
-            duration = info.get("duration", 0)
-
-            return jsonify({
-                "success": True,
-                "title": video_title,
-                "duration": duration,
-                "bitrate": bitrate,
-                "save_location": DOWNLOAD_FOLDER,
-                "timestamp": datetime.now().isoformat()
-            })
-
-    except yt_dlp.utils.DownloadError as e:
-        error_msg = str(e)
-        if "This video is not available" in error_msg or "Private" in error_msg:
-            return jsonify({
-                "error": "This video is not available or is private"
-            }), 400
-        elif "playlist" in error_msg.lower():
-            return jsonify({
-                "error": "Playlists are not supported. Please provide a single video URL"
-            }), 400
-        else:
-            # Log the full yt-dlp error server-side, but don't echo it back
-            # to the client (it can contain file paths and internals).
-            print(f"❌ DownloadError: {error_msg}")
-            return jsonify({
-                "error": "Could not download this video. It may be "
-                         "unavailable, age-restricted, or region-locked."
-            }), 400
+    except core.AudioDownloadError as e:
+        # Expected failure with a user-safe message. Log the raw cause
+        # server-side without echoing internals (paths, stack) to the client.
+        if e.detail:
+            print(f"❌ DownloadError: {e.detail}")
+        return jsonify({"error": str(e)}), 400
 
     except Exception as e:
         # Log full detail server-side; return a generic message so we don't

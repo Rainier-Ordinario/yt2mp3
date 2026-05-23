@@ -86,16 +86,27 @@ class YouTubeMP3Converter:
             messagebox.showerror("Error", f"Could not create download folder:\n{e}")
 
     def _setup_ui(self):
-        """Set up the GUI elements"""
-        # Set window background color
+        """Assemble the GUI from focused section builders."""
         self.root.config(bg=BG_PRIMARY)
 
-        # ===== TITLE SECTION with gradient effect =====
-        title_frame = tk.Frame(self.root, bg=BG_SECONDARY, height=85)
+        self._build_header(self.root)
+
+        content_frame = tk.Frame(self.root, bg=BG_PRIMARY)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+        self._build_url_input(content_frame)
+        self._build_quality_selector(content_frame)
+        self._build_download_button(content_frame)
+        self._build_progress_bar(content_frame)
+        self._build_status_area(content_frame)
+
+        self._build_footer(self.root)
+
+    def _build_header(self, parent):
+        """Title banner with the app name and subtitle."""
+        title_frame = tk.Frame(parent, bg=BG_SECONDARY, height=85)
         title_frame.pack(fill=tk.X, padx=0, pady=0)
         title_frame.pack_propagate(False)
 
-        # Main title
         title_label = tk.Label(
             title_frame,
             text="YouTube to MP3 Converter",
@@ -105,7 +116,6 @@ class YouTubeMP3Converter:
         )
         title_label.pack(pady=(20, 5))
 
-        # Subtitle with better contrast
         subtitle_label = tk.Label(
             title_frame,
             text="Download and convert videos to high-quality MP3 audio",
@@ -115,13 +125,10 @@ class YouTubeMP3Converter:
         )
         subtitle_label.pack(pady=(0, 10))
 
-        # ===== MAIN CONTENT SECTION =====
-        content_frame = tk.Frame(self.root, bg=BG_PRIMARY)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
-
-        # URL input section with label
+    def _build_url_input(self, parent):
+        """Labelled URL entry field (Enter triggers a download)."""
         url_label = tk.Label(
-            content_frame,
+            parent,
             text="YouTube URL",
             font=("Helvetica", 12, "bold"),
             bg=BG_PRIMARY,
@@ -129,9 +136,8 @@ class YouTubeMP3Converter:
         )
         url_label.pack(anchor=tk.W, pady=(0, 8))
 
-        # URL entry field with improved styling and contrast
         self.url_entry = tk.Entry(
-            content_frame,
+            parent,
             font=("Helvetica", 12),
             width=50,
             bg=BG_TERTIARY,
@@ -147,8 +153,9 @@ class YouTubeMP3Converter:
         # Allow pressing Enter to trigger download
         self.url_entry.bind("<Return>", lambda e: self._on_download_click())
 
-        # Audio quality selector section
-        quality_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+    def _build_quality_selector(self, parent):
+        """Audio quality dropdown and its file-size estimate label."""
+        quality_frame = tk.Frame(parent, bg=BG_PRIMARY)
         quality_frame.pack(fill=tk.X, pady=(0, 25))
 
         quality_label = tk.Label(
@@ -160,7 +167,6 @@ class YouTubeMP3Converter:
         )
         quality_label.pack(anchor=tk.W, pady=(0, 10))
 
-        # Quality selector row with better styling
         quality_selector_frame = tk.Frame(quality_frame, bg=BG_PRIMARY)
         quality_selector_frame.pack(fill=tk.X)
 
@@ -185,7 +191,6 @@ class YouTubeMP3Converter:
         )
         quality_dropdown.pack(side=tk.LEFT, padx=(0, 20))
 
-        # Display file size estimate for selected quality with better contrast
         self.quality_info_label = tk.Label(
             quality_selector_frame,
             text="(~10-12 MB/min)",
@@ -195,8 +200,9 @@ class YouTubeMP3Converter:
         )
         self.quality_info_label.pack(side=tk.LEFT)
 
-        # Download button with improved styling
-        button_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+    def _build_download_button(self, parent):
+        """Primary 'Download as MP3' button."""
+        button_frame = tk.Frame(parent, bg=BG_PRIMARY)
         button_frame.pack(fill=tk.X, pady=(0, 30))
 
         self.download_btn = tk.Button(
@@ -217,8 +223,9 @@ class YouTubeMP3Converter:
         )
         self.download_btn.pack(fill=tk.X)
 
-        # Progress bar section
-        self.progress_frame = tk.Frame(content_frame, bg=BG_PRIMARY)
+    def _build_progress_bar(self, parent):
+        """Indeterminate progress bar shown during downloads."""
+        self.progress_frame = tk.Frame(parent, bg=BG_PRIMARY)
         self.progress_frame.pack(fill=tk.X, pady=(0, 20))
 
         self.progress_bar = ttk.Progressbar(
@@ -228,9 +235,10 @@ class YouTubeMP3Converter:
         )
         self.progress_bar.pack(fill=tk.X, pady=(0, 8))
 
-        # Status display area with scrollbar for long output
+    def _build_status_area(self, parent):
+        """Scrolling, colour-coded status/message log."""
         status_label = tk.Label(
-            content_frame,
+            parent,
             text="Status & Messages",
             font=("Helvetica", 12, "bold"),
             bg=BG_PRIMARY,
@@ -239,7 +247,7 @@ class YouTubeMP3Converter:
         status_label.pack(anchor=tk.W, pady=(0, 10))
 
         self.status_text = scrolledtext.ScrolledText(
-            content_frame,
+            parent,
             height=10,
             width=60,
             font=("Courier", 10),
@@ -255,12 +263,12 @@ class YouTubeMP3Converter:
         )
         self.status_text.pack(fill=tk.BOTH, expand=True)
 
-        # ===== FOOTER SECTION =====
-        footer_frame = tk.Frame(self.root, bg=BG_SECONDARY, height=60)
+    def _build_footer(self, parent):
+        """Footer showing where files are saved."""
+        footer_frame = tk.Frame(parent, bg=BG_SECONDARY, height=60)
         footer_frame.pack(fill=tk.X, side=tk.BOTTOM)
         footer_frame.pack_propagate(False)
 
-        # Display the download folder path for user reference
         footer_label = tk.Label(
             footer_frame,
             text=f"Saves to:  {self.download_folder}",

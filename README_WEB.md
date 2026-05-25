@@ -1,6 +1,6 @@
 # YouTube to MP3 Converter - Web App
 
-A modern, beautiful web application to download and convert YouTube videos to high-quality MP3 audio. Built with Next.js, React, and Python Flask.
+A modern, beautiful web application to download and convert YouTube videos to high-quality MP3 audio. Built with Next.js, React, and Python Flask. Created this to use audio from youtube for video editing.
 
 ## Features
 

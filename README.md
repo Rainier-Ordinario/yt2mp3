@@ -1,6 +1,6 @@
 # YouTube to MP3 Converter
 
-A beautiful, modern web application to download and convert YouTube videos to high-quality MP3 audio.
+A beautiful, modern web application to download and convert YouTube videos to high-quality MP3 audio. Created this to use audio from youtube for video editing.
 
 ## Quick Start
 

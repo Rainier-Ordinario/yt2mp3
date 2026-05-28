@@ -18,7 +18,7 @@ export function YouTubeConverter() {
   const [url, setUrl] = useState("");
   const [quality, setQuality] = useState("320");
   const qualityOptions = useQualityOptions();
-  const { isLoading, error, success, download } = useDownload();
+  const { isLoading, error, success, progress, download } = useDownload();
 
   const handleDownload = async () => {
     const ok = await download(url, quality);
@@ -107,6 +107,18 @@ export function YouTubeConverter() {
           {isLoading ? "Downloading..." : "Download as MP3"}
         </Button>
       </motion.div>
+
+      {/* Progress (live yt-dlp progress while downloading) */}
+      {isLoading && progress && (
+        <motion.div
+          className="w-full max-w-xl p-3 rounded-lg bg-secondary/50 border border-border"
+          variants={itemVariants}
+        >
+          <p className="text-sm font-mono text-muted-foreground text-left">
+            {progress}
+          </p>
+        </motion.div>
+      )}
 
       {/* Error Message */}
       {error && (

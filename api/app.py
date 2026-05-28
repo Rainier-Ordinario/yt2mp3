@@ -5,10 +5,13 @@ Handles video downloading and MP3 conversion using yt-dlp and ffmpeg
 
 import os
 import sys
-from flask import Flask, request, jsonify
+import json
+import threading
+import traceback
+from queue import Queue
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from pathlib import Path
-from datetime import datetime
 
 # Import the shared core module from the repo root regardless of cwd.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,58 +47,85 @@ def health_check():
 
 @app.route("/api/download", methods=["POST"])
 def download():
-    """Download YouTube video and convert to MP3"""
+    """Kick off a download and stream NDJSON progress events back.
+
+    Synchronous validation errors come back as a single JSON body (so the
+    client can read them with res.json()). Otherwise the response is a
+    chunked stream of newline-delimited JSON events, one per line:
+
+        {"type":"progress","percent":"45.3%","speed":"2.1MiB/s","eta":"00:08"}
+        {"type":"converting"}
+        {"type":"done","title":"...","duration":123,"bitrate":"320"}
+        {"type":"error","message":"..."}
+    """
     print(f"📥 Download request received from {request.remote_addr}")
-    print(f"   Headers: {dict(request.headers)}")
-    try:
-        data = request.json
-        url = data.get("url", "").strip()
-        bitrate = data.get("bitrate", "320")
-        print(f"   URL: {url}, Bitrate: {bitrate}")
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or "").strip()
+    bitrate = data.get("bitrate") or "320"
+    print(f"   URL: {url}, Bitrate: {bitrate}")
 
-        # Validate input
-        if not url:
-            return jsonify({"error": "URL is required"}), 400
-
-        # Validate YouTube URL
-        if not core.is_valid_youtube_url(url):
-            return jsonify({"error": "Invalid YouTube URL"}), 400
-
-        # Check ffmpeg
-        if not core.check_ffmpeg():
-            return jsonify({
-                "error": "FFmpeg is not installed. Install it with: brew install ffmpeg"
-            }), 500
-
-        # Download and convert (shared orchestration with the desktop app).
-        # The file is written to the *server's* DOWNLOAD_FOLDER — this only
-        # makes sense as a localhost tool. We deliberately don't echo the
-        # server path back to the client.
-        info = core.download_audio(url, bitrate, DOWNLOAD_FOLDER)
+    if not url:
+        return jsonify({"error": "URL is required"}), 400
+    if not core.is_valid_youtube_url(url):
+        return jsonify({"error": "Invalid YouTube URL"}), 400
+    if not core.check_ffmpeg():
         return jsonify({
-            "success": True,
-            "title": info.get("title", "Unknown"),
-            "duration": info.get("duration", 0),
-            "bitrate": bitrate,
-            "timestamp": datetime.now().isoformat()
-        })
-
-    except core.AudioDownloadError as e:
-        # Expected failure with a user-safe message. Log the raw cause
-        # server-side without echoing internals (paths, stack) to the client.
-        if e.detail:
-            print(f"❌ DownloadError: {e.detail}")
-        return jsonify({"error": str(e)}), 400
-
-    except Exception as e:
-        # Log full detail server-side; return a generic message so we don't
-        # leak internals (paths, stack frames) to the client.
-        print(f"❌ Unexpected error: {e}")
-        import traceback
-        print(traceback.format_exc())
-        return jsonify({
-            "error": "An internal error occurred. Please try again."
+            "error": "FFmpeg is not installed. Install it with: brew install ffmpeg"
         }), 500
+
+    return Response(
+        stream_with_context(_download_event_stream(url, bitrate)),
+        mimetype="application/x-ndjson",
+    )
+
+
+def _download_event_stream(url: str, bitrate: str):
+    """Run the download in a background thread; yield NDJSON events as they happen."""
+    events: "Queue[dict | None]" = Queue()
+
+    def on_progress(d):
+        status = d.get("status")
+        if status == "downloading":
+            events.put({
+                "type": "progress",
+                "percent": (d.get("_percent_str") or "").strip(),
+                "speed": (d.get("_speed_str") or "").strip(),
+                "eta": (d.get("_eta_str") or "").strip(),
+            })
+        elif status == "finished":
+            events.put({"type": "converting"})
+
+    def run():
+        try:
+            info = core.download_audio(
+                url, bitrate, DOWNLOAD_FOLDER, progress_hooks=[on_progress]
+            )
+            events.put({
+                "type": "done",
+                "title": info.get("title", "Unknown"),
+                "duration": info.get("duration", 0),
+                "bitrate": bitrate,
+            })
+        except core.AudioDownloadError as e:
+            if e.detail:
+                print(f"❌ DownloadError: {e.detail}")
+            events.put({"type": "error", "message": str(e)})
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            print(traceback.format_exc())
+            events.put({
+                "type": "error",
+                "message": "An internal error occurred. Please try again.",
+            })
+        finally:
+            events.put(None)  # sentinel: tells the generator to stop
+
+    threading.Thread(target=run, daemon=True).start()
+    while True:
+        event = events.get()
+        if event is None:
+            return
+        yield json.dumps(event) + "\n"
 
 
 @app.route("/api/formats", methods=["GET"])

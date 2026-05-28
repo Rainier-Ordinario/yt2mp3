@@ -133,7 +133,11 @@ export function YouTubeConverter() {
         className="w-full max-w-xl pt-6 border-t border-border text-xs text-muted-foreground space-y-2 font-light"
         variants={itemVariants}
       >
-        <p className="opacity-75">Saves to: ~/Downloads/YouTube MP3s</p>
+        <p className="opacity-75">
+          Runs on localhost only. Files are saved to{" "}
+          <code className="font-mono">~/Downloads/YouTube MP3s</code> on the
+          machine running the backend.
+        </p>
         <p className="opacity-75">For personal use only. Respect content creators&rsquo; rights.</p>
       </motion.div>
     </motion.div>

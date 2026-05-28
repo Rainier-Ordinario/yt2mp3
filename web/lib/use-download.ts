@@ -38,7 +38,7 @@ export function useDownload(): UseDownload {
         url: url.trim(),
         bitrate: quality,
       });
-      setSuccess(`Downloaded: ${response.data.title}`);
+      setSuccess(`Saved: ${response.data.title}`);
       return true;
     } catch (err: unknown) {
       const message =

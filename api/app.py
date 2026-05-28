@@ -34,10 +34,11 @@ Path(DOWNLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 def health_check():
     """Health check endpoint"""
     ffmpeg_available = core.check_ffmpeg()
+    # Don't expose the server's filesystem path. Callers only need to know
+    # whether the service can run.
     return jsonify({
         "status": "ok",
         "ffmpeg": ffmpeg_available,
-        "download_folder": DOWNLOAD_FOLDER
     })
 
 
@@ -66,14 +67,16 @@ def download():
                 "error": "FFmpeg is not installed. Install it with: brew install ffmpeg"
             }), 500
 
-        # Download and convert (shared orchestration with the desktop app)
+        # Download and convert (shared orchestration with the desktop app).
+        # The file is written to the *server's* DOWNLOAD_FOLDER — this only
+        # makes sense as a localhost tool. We deliberately don't echo the
+        # server path back to the client.
         info = core.download_audio(url, bitrate, DOWNLOAD_FOLDER)
         return jsonify({
             "success": True,
             "title": info.get("title", "Unknown"),
             "duration": info.get("duration", 0),
             "bitrate": bitrate,
-            "save_location": DOWNLOAD_FOLDER,
             "timestamp": datetime.now().isoformat()
         })
 
